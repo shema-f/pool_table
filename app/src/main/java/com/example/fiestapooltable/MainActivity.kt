@@ -24,9 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fiestapooltable.ui.game.GameScreen
 import com.example.fiestapooltable.ui.home.MainScreen
+import com.example.fiestapooltable.ui.leaderboard.LeaderboardScreen
 import com.example.fiestapooltable.ui.lobby.LocalLobbyScreen
 import com.example.fiestapooltable.ui.lobby.OnlineLobbyScreen
 import com.example.fiestapooltable.ui.profile.ProfileScreen
+import com.example.fiestapooltable.ui.settings.SettingsScreen
 import com.example.fiestapooltable.ui.tournaments.TournamentScreen
 import com.example.fiestapooltable.ui.theme.FiestaPoolTableTheme
 
@@ -48,6 +50,8 @@ class MainActivity : ComponentActivity() {
                             "online_lobby" -> OnlineLobbyScreen(onStartMatch = { currentRoute = "practice" }, onBack = { currentRoute = "home" })
                             "tournaments" -> TournamentScreen(onBack = { currentRoute = "home" })
                             "profile" -> ProfileScreen(onBack = { currentRoute = "home" })
+                            "leaderboard" -> LeaderboardScreen(onBack = { currentRoute = "home" })
+                            "settings" -> SettingsScreen(onBack = { currentRoute = "home" })
                             else -> PlaceholderScreen(route = currentRoute, onBack = { currentRoute = "home" })
                         }
                     }
