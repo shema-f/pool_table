@@ -31,8 +31,8 @@ fun BilliardsTableView(
     tableWidth: Float,
     tableHeight: Float,
     isSimulating: Boolean,
-    aimAngle: Float, // Angle in radians pointing from cue ball to target direction
-    currentPower: Float, // 0f to 1f
+    aimAngle: Float,
+    currentPower: Float,
     onAimChanged: (Float) -> Unit
 ) {
     Box(
@@ -44,24 +44,15 @@ fun BilliardsTableView(
                 if (isSimulating) return@pointerInput
 
                 detectDragGestures(
-                    onDragStart = { offset ->
-                        // Optional start handle if needed
-                    },
+                    onDragStart = {},
                     onDrag = { change, _ ->
                         val cueBall = balls.find { it.number == 0 }
                         if (cueBall != null) {
-                            // Calculate angle from cue ball to touch drag position
-                            // Note: We map touch coordinates to table physical coordinates
-                            // For simplicity, drag delta rotates aiming angle
-                            val dx = change.position.x - (tableWidth / 2f) // relative center check
-                            val dy = change.position.y - (tableHeight / 2f)
-                            if (dx != 0f || dy != 0f) {
-                                val newAngle = atan2(
-                                    change.position.y - cueBall.position.y,
-                                    change.position.x - cueBall.position.x
-                                )
-                                onAimChanged(newAngle)
-                            }
+                            val newAngle = atan2(
+                                change.position.y - cueBall.position.y,
+                                change.position.x - cueBall.position.x
+                            )
+                            onAimChanged(newAngle)
                         }
                     },
                     onDragEnd = {},
@@ -82,9 +73,19 @@ fun BilliardsTableView(
             drawContext.canvas.nativeCanvas.translate(offsetX, offsetY)
             drawContext.canvas.nativeCanvas.scale(scale, scale)
 
-            // 1. Wooden Outer Frame & Rails (Real pool table styling)
+            // --- 3D ISOMETRIC / PERSPECTIVE TILT TRANSFORMATION ---
+            // Apply slight vertical perspective skew to give a 3D angled camera look
+            drawContext.canvas.nativeCanvas.skew(0.0f, -0.08f)
+
+            // 1. 3D Wooden Table Cabinet & Outer Frame with Depth
             drawRoundRect(
-                color = Color(0xFF3E2723), // Deep Mahogany Wood
+                color = Color(0xFF26140E), // Dark wood shadow base
+                topLeft = Offset(-26f, -22f),
+                size = Size(tableWidth + 52f, tableHeight + 60f),
+                cornerRadius = CornerRadius(34f, 34f)
+            )
+            drawRoundRect(
+                color = Color(0xFF4E342E), // Polished Mahogany Wood Rails
                 topLeft = Offset(-22f, -22f),
                 size = Size(tableWidth + 44f, tableHeight + 44f),
                 cornerRadius = CornerRadius(30f, 30f)
@@ -92,13 +93,13 @@ fun BilliardsTableView(
 
             // Inner rail cushion border
             drawRoundRect(
-                color = Color(0xFF271916),
+                color = Color(0xFF1B100D),
                 topLeft = Offset(-10f, -10f),
                 size = Size(tableWidth + 20f, tableHeight + 20f),
                 cornerRadius = CornerRadius(18f, 18f)
             )
 
-            // 2. Green Felt Surface
+            // 2. Green Felt Surface with Subtle Gradient / Lighting
             drawRoundRect(
                 color = FiestaGreenFelt,
                 topLeft = Offset(0f, 0f),
@@ -106,47 +107,54 @@ fun BilliardsTableView(
                 cornerRadius = CornerRadius(8f, 8f)
             )
 
-            // 3. Pockets (Realistic dark recessed holes with brass collars)
+            // 3. Pockets (Realistic 3D recessed holes with brass collars)
             for (pocket in pockets) {
+                // Brass collar
                 drawCircle(
                     color = Color(0xFFD4AF37),
                     radius = pocket.radius + 4f,
                     center = Offset(pocket.position.x, pocket.position.y)
                 )
+                // Pocket shadow depth
                 drawCircle(
-                    color = Color(0xFF0A0A0A),
+                    color = Color(0xFF050505),
                     radius = pocket.radius,
                     center = Offset(pocket.position.x, pocket.position.y)
                 )
             }
 
-            // 4. Aiming Guide & Visible Cue Stick
+            // 4. Aiming Guide & 3D Elevated Cue Stick
             val cueBall = balls.find { it.number == 0 }
             if (!isSimulating && cueBall != null && !cueBall.isPocketed) {
-                // Aim direction vector
                 val dirX = cos(aimAngle)
                 val dirY = sin(aimAngle)
 
-                // Trajectory guide line (forward from cue ball)
+                // Trajectory guide line
                 val endX = cueBall.position.x + dirX * 350f
                 val endY = cueBall.position.y + dirY * 350f
 
                 drawLine(
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = Color.White.copy(alpha = 0.9f),
                     start = Offset(cueBall.position.x, cueBall.position.y),
                     end = Offset(endX, endY),
-                    strokeWidth = 3.5f,
+                    strokeWidth = 4f,
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
                 )
 
-                // Cue Stick (Always visible, positioned opposite to aimAngle, pulled back based on currentPower)
-                val pullBack = 45f + (currentPower * 120f)
+                // 3D Elevated Wooden Cue Stick
+                val pullBack = 45f + (currentPower * 130f)
                 val stickStartX = cueBall.position.x - dirX * pullBack
                 val stickStartY = cueBall.position.y - dirY * pullBack
-                val stickEndX = cueBall.position.x - dirX * 280f
-                val stickEndY = cueBall.position.y - dirY * 280f
+                val stickEndX = cueBall.position.x - dirX * 300f
+                val stickEndY = cueBall.position.y - dirY * 300f
 
-                // Cue Shaft (Wood Grain)
+                // Cue Shaft with 3D shadow offset
+                drawLine(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    start = Offset(stickStartX + 3f, stickStartY + 6f),
+                    end = Offset(stickEndX + 3f, stickEndY + 6f),
+                    strokeWidth = 11f
+                )
                 drawLine(
                     color = Color(0xFFD7CCC8),
                     start = Offset(stickStartX, stickStartY),
@@ -156,15 +164,15 @@ fun BilliardsTableView(
                 // Cue Tip (Blue chalk point)
                 drawCircle(
                     color = Color(0xFF29B6F6),
-                    radius = 5f,
+                    radius = 5.5f,
                     center = Offset(stickStartX, stickStartY)
                 )
             }
 
-            // 5. Balls
+            // 5. Balls with 3D Height Shadows & Glossy Spheres
             for (ball in balls) {
                 if (ball.isPocketed) continue
-                drawBall(ball)
+                draw3DBall(ball)
             }
 
             drawContext.canvas.nativeCanvas.restore()
@@ -172,14 +180,14 @@ fun BilliardsTableView(
     }
 }
 
-private fun DrawScope.drawBall(ball: Ball) {
+private fun DrawScope.draw3DBall(ball: Ball) {
     val center = Offset(ball.position.x, ball.position.y)
 
-    // Ball Shadow
+    // Realistic 3D Ball Drop Shadow (offset downward for 3D perspective depth)
     drawCircle(
-        color = Color.Black.copy(alpha = 0.4f),
-        radius = ball.radius,
-        center = center + Offset(3f, 6f)
+        color = Color.Black.copy(alpha = 0.5f),
+        radius = ball.radius * 1.05f,
+        center = center + Offset(4f, 8f)
     )
 
     // Ball Base Color
@@ -198,10 +206,10 @@ private fun DrawScope.drawBall(ball: Ball) {
         )
     }
 
-    // Specular highlight for 3D glossy pool ball look
+    // 3D Glossy Specular Highlight (giving it a shiny billiard ball look)
     drawCircle(
-        color = Color.White.copy(alpha = 0.7f),
-        radius = ball.radius * 0.28f,
+        color = Color.White.copy(alpha = 0.75f),
+        radius = ball.radius * 0.3f,
         center = center + Offset(-ball.radius * 0.3f, -ball.radius * 0.3f)
     )
 }
