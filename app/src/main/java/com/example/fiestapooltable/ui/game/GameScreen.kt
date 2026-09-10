@@ -42,9 +42,12 @@ fun GameScreen(
     var ruleState by remember { mutableStateOf(GameRuleState()) }
     val previouslyPocketedIds = remember { mutableSetOf<Int>() }
     
+    // 3D vs Table Mode toggle
+    var is3DMode by remember { mutableStateOf(false) }
+
     // Aiming and Power state
-    var aimAngle by remember { mutableStateOf(0f) } // radians pointing right by default
-    var currentPower by remember { mutableStateOf(0.3f) } // 0.05f to 1.0f
+    var aimAngle by remember { mutableStateOf(0f) }
+    var currentPower by remember { mutableStateOf(0.3f) }
     var aiThinking by remember { mutableStateOf(false) }
 
     // AI turn logic
@@ -127,16 +130,22 @@ fun GameScreen(
                     fontWeight = FontWeight.Bold,
                     color = FiestaGold
                 )
-                OutlinedButton(
-                    onClick = {
-                        balls.clear()
-                        balls.addAll(createInitialBalls(tableWidth, tableHeight))
-                        previouslyPocketedIds.clear()
-                        ruleState = GameRuleState()
-                        isSimulating = false
+                Row {
+                    OutlinedButton(onClick = { is3DMode = !is3DMode }) {
+                        Text(if (is3DMode) "2D Table" else "🧊 3D GLB")
                     }
-                ) {
-                    Text("Reset Match")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            balls.clear()
+                            balls.addAll(createInitialBalls(tableWidth, tableHeight))
+                            previouslyPocketedIds.clear()
+                            ruleState = GameRuleState()
+                            isSimulating = false
+                        }
+                    ) {
+                        Text("Reset")
+                    }
                 }
             }
 
@@ -161,104 +170,113 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Table & Side Energy Power Meter & Shoot Button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Billiards Table View with Touch Aiming & Visible Cue Stick
+            // Main Display: 3D SceneView GLB Model OR 2D/Isometric Physics Table
+            if (is3DMode) {
                 Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
-                    BilliardsTableView(
-                        balls = balls,
-                        pockets = pockets,
-                        tableWidth = tableWidth,
-                        tableHeight = tableHeight,
-                        isSimulating = isSimulating || ruleState.isGameOver || (isAiMatch && ruleState.currentPlayer == 2),
-                        aimAngle = aimAngle,
-                        currentPower = currentPower,
-                        onAimChanged = { newAngle -> aimAngle = newAngle }
-                    )
+                    Billiards3DView()
                 }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // Side Energy / Power Column Meter & Shoot Button Column
-                Column(
+            } else {
+                Row(
                     modifier = Modifier
-                        .width(60.dp)
-                        .fillMaxHeight(0.9f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "POWER", fontSize = 10.sp, color = FiestaGold, fontWeight = FontWeight.Bold)
-
-                    // Vertical Power Meter (Draggable / interactive power column)
                     Box(
                         modifier = Modifier
-                            .width(32.dp)
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF1E1E1E))
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDrag = { change, dragAmount ->
-                                        // Dragging up increases power, dragging down decreases power
-                                        val delta = -dragAmount.y * 0.005f
-                                        currentPower = (currentPower + delta).coerceIn(0.05f, 1.0f)
-                                        change.consume()
-                                    }
-                                )
-                            },
-                        contentAlignment = Alignment.BottomCenter
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.7f)
-                                .fillMaxHeight(currentPower)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (currentPower > 0.7f) Color.Red
-                                    else if (currentPower > 0.4f) FiestaOrange
-                                    else FiestaGold
-                                )
+                        BilliardsTableView(
+                            balls = balls,
+                            pockets = pockets,
+                            tableWidth = tableWidth,
+                            tableHeight = tableHeight,
+                            isSimulating = isSimulating || ruleState.isGameOver || (isAiMatch && ruleState.currentPlayer == 2),
+                            aimAngle = aimAngle,
+                            currentPower = currentPower,
+                            onAimChanged = { newAngle -> aimAngle = newAngle }
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                    // Shoot Button
-                    Button(
-                        onClick = {
-                            val cueBall = balls.find { it.number == 0 }
-                            if (cueBall != null && !isSimulating && !ruleState.isGameOver && !(isAiMatch && ruleState.currentPlayer == 2)) {
-                                val speed = currentPower * 38f
-                                val velocityX = cos(aimAngle) * speed
-                                val velocityY = sin(aimAngle) * speed
-                                cueBall.velocity = Vector2D(velocityX, velocityY)
-                                isSimulating = true
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = FiestaOrange),
+                    // Side Energy / Power Column Meter & Shoot Button
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(0.dp)
+                            .width(60.dp)
+                            .fillMaxHeight(0.9f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "⚡\nSHOOT",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            lineHeight = 12.sp
-                        )
+                        Text(text = "POWER", fontSize = 10.sp, color = FiestaGold, fontWeight = FontWeight.Bold)
+
+                        Box(
+                            modifier = Modifier
+                                .width(32.dp)
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF1E1E1E))
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDrag = { change, dragAmount ->
+                                            val delta = -dragAmount.y * 0.005f
+                                            currentPower = (currentPower + delta).coerceIn(0.05f, 1.0f)
+                                            change.consume()
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .fillMaxHeight(currentPower)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (currentPower > 0.7f) Color.Red
+                                        else if (currentPower > 0.4f) FiestaOrange
+                                        else FiestaGold
+                                    )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
+                                val cueBall = balls.find { it.number == 0 }
+                                if (cueBall != null && !isSimulating && !ruleState.isGameOver && !(isAiMatch && ruleState.currentPlayer == 2)) {
+                                    val speed = currentPower * 38f
+                                    val velocityX = cos(aimAngle) * speed
+                                    val velocityY = sin(aimAngle) * speed
+                                    cueBall.velocity = Vector2D(velocityX, velocityY)
+                                    isSimulating = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = FiestaOrange),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = "⚡\nSHOOT",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                lineHeight = 12.sp
+                            )
+                        }
                     }
                 }
             }
